@@ -1,3 +1,18 @@
+# Host ports can be changed in .env (POSTGRES_PORT, REDIS_PORT, JAEGER_UI_PORT,
+# JAEGER_OTLP_PORT) if something else on your machine already uses the defaults.
+
+x-app: &app
+  build: .
+  image: production-ready-claude-agent
+  env_file:
+    - path: .env
+      required: false
+  environment:
+    # Inside the compose network, services are reached by name.
+    DATABASE_URL: postgresql://agent:agent@postgres:5432/agent
+    REDIS_URL: redis://redis:6379/0
+    OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
+
 services:
   postgres:
     image: postgres:16
@@ -6,20 +21,51 @@ services:
       POSTGRES_USER: agent
       POSTGRES_PASSWORD: agent
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agent -d agent"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
 
   redis:
     image: redis:7
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
 
   jaeger:
     image: jaegertracing/all-in-one:1.62.0
     ports:
-      - "16686:16686" # UI
-      - "4317:4317" # OTLP gRPC
+      - "${JAEGER_UI_PORT:-16686}:16686" # UI
+      - "${JAEGER_OTLP_PORT:-4317}:4317" # OTLP gRPC
+
+  migrate:
+    <<: *app
+    command: ["alembic", "upgrade", "head"]
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  worker:
+    <<: *app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      jaeger:
+        condition: service_started
+      migrate:
+        condition: service_completed_successfully
 
 volumes:
   postgres-data:

@@ -1,0 +1,13 @@
+.git
+.github
+.env
+.venv
+**/__pycache__
+.pytest_cache
+.mypy_cache
+.ruff_cache
+tests
+*.md
+!README.md
+!agents/research/prompt.md
+!agents/research/sample_docs/*.md
