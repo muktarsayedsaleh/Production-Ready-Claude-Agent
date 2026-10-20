@@ -1,7 +1,7 @@
 [project]
 name = "production-ready-claude-agent"
 version = "0.1.0"
-description = "A production-ready Claude Agent SDK template you can clone, run with one command, and ship."
+description = "A production-ready Claude agent template you can clone, run with one command, and ship."
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
@@ -10,7 +10,6 @@ requires-python = ">=3.12"
 dependencies = [
     "alembic",
     "anthropic",
-    "claude-agent-sdk",
     "redis",
     "psycopg[binary]",
     "pyyaml",
