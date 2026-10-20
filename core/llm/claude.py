@@ -32,8 +32,11 @@ class ClaudeClient(LLMClient):
         messages: list[Message],
         tools: list[ToolSpec] | None = None,
         max_tokens: int = 16000,
+        system: str | None = None,
     ) -> LLMResponse:
         kwargs: dict[str, Any] = {}
+        if system:
+            kwargs["system"] = system
         if tools:
             kwargs["tools"] = [_to_tool_param(tool) for tool in tools]
 

@@ -13,7 +13,7 @@ from core.llm import LLMClient, LLMResponse, Message, ToolCall, ToolResult, Tool
 from core.permissions import Decision, Policy, PolicyCheck
 from core.runtime.checkpoint import CheckpointStore, TaskState
 from core.runtime.errors import ApprovalRequired, CostCapExceeded, StepLimitExceeded
-from core.runtime.results import ResultStore, TaskResult
+from core.runtime.results import ResultStore, TaskResult, ToolUse
 from core.runtime.retry import RetryPolicy, Sleep, with_retries
 
 logger = logging.getLogger(__name__)
@@ -56,6 +56,7 @@ class AgentRuntime:
         retry: RetryPolicy | None = None,
         sleep: Sleep = asyncio.sleep,
         tracer: Tracer | None = None,
+        system_prompt: str | None = None,
     ) -> None:
         self._llm = llm
         self._tools = {tool.name: tool for tool in tools}
@@ -70,6 +71,7 @@ class AgentRuntime:
         self._retry = retry or RetryPolicy()
         self._sleep = sleep
         self._tracer = tracer or trace.get_tracer(__name__)
+        self._system_prompt = system_prompt
 
     async def run(self, task: str, idempotency_key: str | None = None) -> TaskResult:
         """Run a task. If it is paused under this key, continue it instead (once decided)."""
@@ -181,6 +183,7 @@ class AgentRuntime:
                     cost_usd=state.cost_usd,
                     input_tokens=state.input_tokens,
                     output_tokens=state.output_tokens,
+                    tool_calls=state.tool_log,
                 )
                 if key and self._results:
                     await self._results.save(key, result)
@@ -220,7 +223,8 @@ class AgentRuntime:
         results = await asyncio.gather(
             *(self._execute(call, check, state.decisions.get(call.id)) for call, check in plan)
         )
-        for call, check in plan:
+        for (call, check), result in zip(plan, results, strict=True):
+            state.tool_log.append(ToolUse(call.name, call.input, result.is_error))
             if _runs(check, state.decisions.get(call.id)):
                 state.tool_calls_made[call.name] = state.tool_calls_made.get(call.name, 0) + 1
         state.messages.append(Message(role="user", tool_results=list(results)))
@@ -229,7 +233,9 @@ class AgentRuntime:
 
     async def _complete(self, messages: list[Message], specs: list[ToolSpec] | None) -> LLMResponse:
         with self._tracer.start_as_current_span("llm.call") as span:
-            response = await self._llm.complete(messages, specs, self._max_tokens)
+            response = await self._llm.complete(
+                messages, specs, self._max_tokens, system=self._system_prompt
+            )
             span.set_attributes(
                 {
                     "gen_ai.response.model": response.model,

@@ -3,7 +3,7 @@ from typing import Any
 
 from core.llm import LLMClient, LLMResponse, Message, ToolSpec
 from core.queue import Job, JobStatus
-from core.runtime import TaskResult, TaskState
+from core.runtime import InMemoryCheckpointStore, TaskResult
 
 
 class FakeLLMClient(LLMClient):
@@ -13,15 +13,18 @@ class FakeLLMClient(LLMClient):
         self.script = list(script)
         self.calls: list[list[Message]] = []
         self.tools_seen: list[list[ToolSpec] | None] = []
+        self.systems_seen: list[str | None] = []
 
     async def complete(
         self,
         messages: list[Message],
         tools: list[ToolSpec] | None = None,
         max_tokens: int = 16000,
+        system: str | None = None,
     ) -> LLMResponse:
         self.calls.append(list(messages))
         self.tools_seen.append(tools)
+        self.systems_seen.append(system)
         item = self.script.pop(0)
         if isinstance(item, Exception):
             raise item
@@ -70,18 +73,9 @@ class InMemoryResultStore:
         self.results[key] = result
 
 
-class InMemoryCheckpointStore:
-    """Round-trips through JSON, like the Redis store, so serialization bugs surface."""
-
-    def __init__(self) -> None:
-        self.states: dict[str, str] = {}
-
-    async def get(self, key: str) -> TaskState | None:
-        raw = self.states.get(key)
-        return None if raw is None else TaskState.from_json(raw)
-
-    async def save(self, key: str, state: TaskState) -> None:
-        self.states[key] = state.to_json()
-
-    async def delete(self, key: str) -> None:
-        self.states.pop(key, None)
+__all__ = [
+    "FakeLLMClient",
+    "InMemoryCheckpointStore",
+    "InMemoryJobStore",
+    "InMemoryResultStore",
+]

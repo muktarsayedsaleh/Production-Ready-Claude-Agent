@@ -61,4 +61,5 @@ class LLMClient(ABC):
         messages: list[Message],
         tools: list[ToolSpec] | None = None,
         max_tokens: int = 16000,
+        system: str | None = None,
     ) -> LLMResponse: ...

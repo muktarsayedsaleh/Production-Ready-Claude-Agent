@@ -1,5 +1,10 @@
 from core.runtime.agent import AgentRuntime, Tool
-from core.runtime.checkpoint import CheckpointStore, RedisCheckpointStore, TaskState
+from core.runtime.checkpoint import (
+    CheckpointStore,
+    InMemoryCheckpointStore,
+    RedisCheckpointStore,
+    TaskState,
+)
 from core.runtime.errors import (
     AgentError,
     ApprovalRequired,
@@ -7,7 +12,7 @@ from core.runtime.errors import (
     StepLimitExceeded,
 )
 from core.runtime.registry import ToolDefinition, ToolRegistry
-from core.runtime.results import RedisResultStore, ResultStore, TaskResult
+from core.runtime.results import RedisResultStore, ResultStore, TaskResult, ToolUse
 from core.runtime.retry import RetryPolicy
 
 __all__ = [
@@ -16,6 +21,7 @@ __all__ = [
     "ApprovalRequired",
     "CheckpointStore",
     "CostCapExceeded",
+    "InMemoryCheckpointStore",
     "RedisCheckpointStore",
     "RedisResultStore",
     "ResultStore",
@@ -26,4 +32,5 @@ __all__ = [
     "Tool",
     "ToolDefinition",
     "ToolRegistry",
+    "ToolUse",
 ]

@@ -5,6 +5,7 @@ from typing import Any, Protocol
 from redis.asyncio import Redis
 
 from core.llm import Message, ToolCall, ToolResult
+from core.runtime.results import ToolUse
 
 
 @dataclass
@@ -21,6 +22,7 @@ class TaskState:
     pending: list[ToolCall] = field(default_factory=list)
     # Reviewer decisions for pending calls that need approval, by tool call id.
     decisions: dict[str, bool] = field(default_factory=dict)
+    tool_log: list[ToolUse] = field(default_factory=list)
 
     def to_json(self) -> str:
         return json.dumps(asdict(self))
@@ -37,6 +39,7 @@ class TaskState:
             tool_calls_made=data["tool_calls_made"],
             pending=[ToolCall(**c) for c in data["pending"]],
             decisions=data["decisions"],
+            tool_log=[ToolUse(**use) for use in data.get("tool_log", [])],
         )
 
 
@@ -58,6 +61,23 @@ class CheckpointStore(Protocol):
     async def save(self, key: str, state: TaskState) -> None: ...
 
     async def delete(self, key: str) -> None: ...
+
+
+class InMemoryCheckpointStore:
+    """For in-process runs and tests. Round-trips through JSON like the Redis store."""
+
+    def __init__(self) -> None:
+        self.states: dict[str, str] = {}
+
+    async def get(self, key: str) -> TaskState | None:
+        raw = self.states.get(key)
+        return None if raw is None else TaskState.from_json(raw)
+
+    async def save(self, key: str, state: TaskState) -> None:
+        self.states[key] = state.to_json()
+
+    async def delete(self, key: str) -> None:
+        self.states.pop(key, None)
 
 
 class RedisCheckpointStore:
