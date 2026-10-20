@@ -65,7 +65,6 @@ async def _main(queue_name: str, handler: Handler) -> None:
     database_url = os.environ.get("DATABASE_URL", "postgresql://agent:agent@localhost:5432/agent")
     async with await psycopg.AsyncConnection.connect(database_url, autocommit=True) as conn:
         store = PostgresJobStore(conn)
-        await store.ensure_schema()
         logger.info("Worker listening on queue %r", queue_name)
         await Worker(JobQueue(redis, store, queue_name), store, handler).run()
 

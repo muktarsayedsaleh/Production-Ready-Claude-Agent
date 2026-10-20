@@ -13,3 +13,16 @@ A production-ready Claude Agent SDK template you can clone, run with one command
 - **Evals**: a harness for measuring agent quality
 - **Permissions**: control over what tools and actions the agent can use
 - **Docker Compose**: the whole stack runs locally with one command
+
+## Setup
+
+```bash
+cp .env.example .env        # then set ANTHROPIC_API_KEY
+docker compose up -d        # Postgres, Redis and Jaeger
+uv sync                     # install dependencies
+make migrate                # create the database schema (alembic upgrade head)
+```
+
+Run `make migrate` again whenever you pull new migrations. The Postgres integration tests run
+only when `TEST_DATABASE_URL` is set, for example
+`TEST_DATABASE_URL=postgresql://agent:agent@localhost:5432/agent uv run pytest`.

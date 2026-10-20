@@ -5,18 +5,6 @@ from psycopg.types.json import Jsonb
 
 from core.queue.models import Job, JobStatus
 
-SCHEMA = """
-CREATE TABLE IF NOT EXISTS jobs (
-    id uuid PRIMARY KEY,
-    payload jsonb NOT NULL,
-    status text NOT NULL,
-    attempts integer NOT NULL DEFAULT 0,
-    last_error text,
-    created_at timestamptz NOT NULL DEFAULT now(),
-    updated_at timestamptz NOT NULL DEFAULT now()
-)
-"""
-
 
 class JobStore(Protocol):
     async def create(self, job_id: str, payload: dict[str, Any]) -> None: ...
@@ -35,9 +23,6 @@ class JobStore(Protocol):
 class PostgresJobStore:
     def __init__(self, conn: AsyncConnection[Any]) -> None:
         self._conn = conn
-
-    async def ensure_schema(self) -> None:
-        await self._conn.execute(SCHEMA)
 
     async def create(self, job_id: str, payload: dict[str, Any]) -> None:
         await self._conn.execute(

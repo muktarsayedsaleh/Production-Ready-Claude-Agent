@@ -8,6 +8,7 @@ license-files = ["LICENSE"]
 authors = [{ name = "Muktar Sayed Saleh" }]
 requires-python = ">=3.12"
 dependencies = [
+    "alembic",
     "anthropic",
     "claude-agent-sdk",
     "redis",
