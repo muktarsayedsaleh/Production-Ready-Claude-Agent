@@ -8,6 +8,7 @@ license-files = ["LICENSE"]
 authors = [{ name = "Muktar Sayed Saleh" }]
 requires-python = ">=3.12"
 dependencies = [
+    "anthropic",
     "claude-agent-sdk",
     "redis",
     "psycopg[binary]",
@@ -22,6 +23,10 @@ dev = [
     "ruff",
     "mypy",
 ]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
 
 [tool.ruff]
 line-length = 100
