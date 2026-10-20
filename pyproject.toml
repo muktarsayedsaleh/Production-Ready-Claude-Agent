@@ -19,6 +19,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "fakeredis",
     "pytest",
     "ruff",
     "mypy",
