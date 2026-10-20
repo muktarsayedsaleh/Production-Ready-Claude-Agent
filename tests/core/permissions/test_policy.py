@@ -102,3 +102,22 @@ def test_invalid_policy_file_names_the_file(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="Invalid policy file .*bad.yaml"):
         Policy.from_yaml(path)
+
+
+def test_allowed_domains() -> None:
+    policy = Policy.from_dict(
+        {"tools": {"fetch_url": {"decision": "allow", "allowed_domains": ["python.org"]}}}
+    )
+
+    def decide(url: object) -> Decision:
+        return policy.check(call("fetch_url", url=url), {}).decision
+
+    assert decide("https://python.org/") is Decision.ALLOW
+    assert decide("http://docs.PYTHON.org/3/library") is Decision.ALLOW
+    assert decide("https://evilpython.org/") is Decision.DENY
+    assert decide("https://python.org.evil.com/") is Decision.DENY
+    assert decide("ftp://python.org/") is Decision.DENY
+    assert decide("https://user@evil.com/?python.org") is Decision.DENY
+    assert decide(42) is Decision.DENY
+    reason = policy.check(call("fetch_url"), {}).reason
+    assert reason == "tool 'fetch_url' needs a URL argument (url)"

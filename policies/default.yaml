@@ -4,6 +4,9 @@
 # max_calls_per_task:  optional; further calls are denied once the limit is reached
 # allowed_paths:       optional; every path argument must resolve inside one of these prefixes
 # path_arguments:      which input fields hold paths (default: [path])
+# allowed_domains:     optional; every URL argument must be http(s) on one of these domains
+#                      or a subdomain of one (redirects are checked too)
+# url_arguments:       which input fields hold URLs (default: [url])
 #
 # Denied calls are not executed; the model receives a structured error instead.
 # Calls that require approval pause the job (status waiting_approval) until resumed.
@@ -12,6 +15,24 @@
 default: deny
 
 tools:
+  # Research agent tools (agents/research/tools).
+  file_search:
+    decision: allow
+    max_calls_per_task: 30
+
+  calculator:
+    decision: allow
+    max_calls_per_task: 50
+
+  fetch_url:
+    decision: allow
+    max_calls_per_task: 10
+    allowed_domains:
+      - en.wikipedia.org
+      - docs.python.org
+      - opentelemetry.io
+
+  # Examples of other rules.
   read_file:
     decision: allow
     max_calls_per_task: 50
@@ -21,10 +42,6 @@ tools:
     decision: require_approval
     max_calls_per_task: 20
     allowed_paths: [./workspace]
-
-  web_fetch:
-    decision: allow
-    max_calls_per_task: 20
 
   send_email:
     decision: require_approval

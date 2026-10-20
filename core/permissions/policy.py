@@ -3,12 +3,20 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 import yaml
 
 from core.llm import ToolCall
 
-_RULE_KEYS = {"decision", "max_calls_per_task", "allowed_paths", "path_arguments"}
+_RULE_KEYS = {
+    "decision",
+    "max_calls_per_task",
+    "allowed_paths",
+    "path_arguments",
+    "allowed_domains",
+    "url_arguments",
+}
 _POLICY_KEYS = {"default", "tools"}
 
 
@@ -25,6 +33,9 @@ class ToolRule:
     # When set, every path argument must resolve inside one of these prefixes.
     allowed_paths: tuple[str, ...] = ()
     path_arguments: tuple[str, ...] = ("path",)
+    # When set, every URL argument must be http(s) on one of these domains or a subdomain.
+    allowed_domains: tuple[str, ...] = ()
+    url_arguments: tuple[str, ...] = ("url",)
 
 
 @dataclass(frozen=True)
@@ -82,8 +93,11 @@ class Policy:
                 Decision.DENY, f"tool {call.name!r} reached its limit of {limit} call(s) per task"
             )
 
-        if rule.allowed_paths:
-            denial = _check_paths(call, rule)
+        for checker, enabled in (
+            (_check_paths, rule.allowed_paths),
+            (_check_urls, rule.allowed_domains),
+        ):
+            denial = checker(call, rule) if enabled else None
             if denial is not None:
                 return PolicyCheck(Decision.DENY, denial)
 
@@ -98,6 +112,28 @@ def _check_paths(call: ToolCall, rule: ToolRule) -> str | None:
         if not isinstance(path, str) or not _within(path, rule.allowed_paths):
             return f"path {path!r} is outside the allowed prefixes for tool {call.name!r}"
     return None
+
+
+def _check_urls(call: ToolCall, rule: ToolRule) -> str | None:
+    urls = [call.input[arg] for arg in rule.url_arguments if arg in call.input]
+    if not urls:
+        return f"tool {call.name!r} needs a URL argument ({', '.join(rule.url_arguments)})"
+    for url in urls:
+        if not isinstance(url, str) or not url_allowed(url, rule.allowed_domains):
+            return f"URL {url!r} is not on the allowed domains for tool {call.name!r}"
+    return None
+
+
+def url_allowed(url: str, domains: tuple[str, ...]) -> bool:
+    """True for an http(s) URL whose host is one of `domains` or a subdomain of one."""
+    try:
+        parts = urlsplit(url)
+        host = (parts.hostname or "").rstrip(".").lower()
+    except ValueError:
+        return False
+    if parts.scheme not in ("http", "https") or not host:
+        return False
+    return any(host == d or host.endswith("." + d) for d in (d.lower() for d in domains))
 
 
 def _within(path: str, prefixes: tuple[str, ...]) -> bool:
@@ -122,6 +158,8 @@ def _parse_rule(name: str, raw: Any) -> ToolRule:
         max_calls_per_task=limit,
         allowed_paths=_string_tuple(raw.get("allowed_paths", ()), name, "allowed_paths"),
         path_arguments=_string_tuple(raw.get("path_arguments", ("path",)), name, "path_arguments"),
+        allowed_domains=_string_tuple(raw.get("allowed_domains", ()), name, "allowed_domains"),
+        url_arguments=_string_tuple(raw.get("url_arguments", ("url",)), name, "url_arguments"),
     )
 
 

@@ -6,6 +6,7 @@ from core.runtime.errors import (
     CostCapExceeded,
     StepLimitExceeded,
 )
+from core.runtime.registry import ToolDefinition, ToolRegistry
 from core.runtime.results import RedisResultStore, ResultStore, TaskResult
 from core.runtime.retry import RetryPolicy
 
@@ -23,4 +24,6 @@ __all__ = [
     "TaskResult",
     "TaskState",
     "Tool",
+    "ToolDefinition",
+    "ToolRegistry",
 ]
