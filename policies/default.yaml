@@ -1,0 +1,34 @@
+# Tool permission policy, checked by the agent runtime before every tool call.
+#
+# decision:            allow | deny | require_approval
+# max_calls_per_task:  optional; further calls are denied once the limit is reached
+# allowed_paths:       optional; every path argument must resolve inside one of these prefixes
+# path_arguments:      which input fields hold paths (default: [path])
+#
+# Denied calls are not executed; the model receives a structured error instead.
+# Calls that require approval pause the job (status waiting_approval) until resumed.
+
+# Tools not listed below get this decision.
+default: deny
+
+tools:
+  read_file:
+    decision: allow
+    max_calls_per_task: 50
+    allowed_paths: [./workspace]
+
+  write_file:
+    decision: require_approval
+    max_calls_per_task: 20
+    allowed_paths: [./workspace]
+
+  web_fetch:
+    decision: allow
+    max_calls_per_task: 20
+
+  send_email:
+    decision: require_approval
+    max_calls_per_task: 1
+
+  shell:
+    decision: deny

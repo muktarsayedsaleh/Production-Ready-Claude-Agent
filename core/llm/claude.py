@@ -67,7 +67,8 @@ class ClaudeClient(LLMClient):
             output_tokens=output_tokens,
             cost_usd=self._pricing.cost(input_tokens, output_tokens),
             model=response.model,
-            provider_state=response.content,
+            # Plain dicts, so the state can be checkpointed as JSON and sent back as-is.
+            provider_state=[block.to_dict() for block in response.content],
         )
 
 

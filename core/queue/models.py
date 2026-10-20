@@ -6,6 +6,7 @@ from typing import Any
 class JobStatus(StrEnum):
     QUEUED = "queued"
     RUNNING = "running"
+    WAITING_APPROVAL = "waiting_approval"
     SUCCEEDED = "succeeded"
     FAILED = "failed"
 
@@ -17,3 +18,7 @@ class Job:
     status: JobStatus
     attempts: int = 0
     last_error: str | None = None
+
+
+class JobPaused(Exception):
+    """Raised by a handler to park the job as waiting_approval instead of failing it."""

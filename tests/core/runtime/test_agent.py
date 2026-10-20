@@ -16,18 +16,7 @@ from core.runtime import (
     Tool,
 )
 from core.runtime.handler import make_job_handler
-from tests.fakes import FakeLLMClient
-
-
-class InMemoryResultStore:
-    def __init__(self) -> None:
-        self.results: dict[str, TaskResult] = {}
-
-    async def get(self, key: str) -> TaskResult | None:
-        return self.results.get(key)
-
-    async def save(self, key: str, result: TaskResult) -> None:
-        self.results[key] = result
+from tests.fakes import FakeLLMClient, InMemoryResultStore
 
 
 class RecordingSleep:

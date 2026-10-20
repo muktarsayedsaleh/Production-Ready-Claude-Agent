@@ -1,36 +1,11 @@
 import asyncio
-from dataclasses import replace
 from typing import Any
 
 from fakeredis import FakeAsyncRedis
 
 from core.queue import Job, JobQueue, JobStatus
 from core.queue.worker import Worker
-
-
-class InMemoryJobStore:
-    def __init__(self) -> None:
-        self.jobs: dict[str, Job] = {}
-
-    async def create(self, job_id: str, payload: dict[str, Any]) -> None:
-        self.jobs[job_id] = Job(id=job_id, payload=payload, status=JobStatus.QUEUED)
-
-    async def mark_running(self, job_id: str) -> Job | None:
-        job = self.jobs.get(job_id)
-        if job is None:
-            return None
-        job = replace(job, status=JobStatus.RUNNING, attempts=job.attempts + 1)
-        self.jobs[job_id] = job
-        return job
-
-    async def mark_succeeded(self, job_id: str) -> None:
-        self.jobs[job_id] = replace(self.jobs[job_id], status=JobStatus.SUCCEEDED, last_error=None)
-
-    async def mark_failed(self, job_id: str, error: str) -> None:
-        self.jobs[job_id] = replace(self.jobs[job_id], status=JobStatus.FAILED, last_error=error)
-
-    async def get(self, job_id: str) -> Job | None:
-        return self.jobs.get(job_id)
+from tests.fakes import InMemoryJobStore
 
 
 def make_queue() -> tuple[JobQueue, InMemoryJobStore]:

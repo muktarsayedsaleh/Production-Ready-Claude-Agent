@@ -1,3 +1,6 @@
+from core.llm import ToolCall
+
+
 class AgentError(Exception):
     """Base class for errors that abort an agent task."""
 
@@ -18,3 +21,13 @@ class CostCapExceeded(AgentError):
             f"Task exceeded its cost cap: spent ${cost_usd:.4f} against a cap of "
             f"${cap_usd:.4f} after {steps} LLM call(s)"
         )
+
+
+class ApprovalRequired(Exception):
+    """The task paused because tool calls need a reviewer's decision. Not a failure."""
+
+    def __init__(self, idempotency_key: str, pending: list[ToolCall]) -> None:
+        self.idempotency_key = idempotency_key
+        self.pending = pending
+        calls = ", ".join(f"{call.name} ({call.id})" for call in pending)
+        super().__init__(f"Task {idempotency_key} is waiting for approval of: {calls}")

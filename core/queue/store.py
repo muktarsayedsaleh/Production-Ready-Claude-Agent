@@ -17,6 +17,10 @@ class JobStore(Protocol):
 
     async def mark_failed(self, job_id: str, error: str) -> None: ...
 
+    async def mark_waiting_approval(self, job_id: str) -> None: ...
+
+    async def mark_queued(self, job_id: str) -> None: ...
+
     async def get(self, job_id: str) -> Job | None: ...
 
 
@@ -46,6 +50,12 @@ class PostgresJobStore:
 
     async def mark_failed(self, job_id: str, error: str) -> None:
         await self._set_status(job_id, JobStatus.FAILED, error)
+
+    async def mark_waiting_approval(self, job_id: str) -> None:
+        await self._set_status(job_id, JobStatus.WAITING_APPROVAL, None)
+
+    async def mark_queued(self, job_id: str) -> None:
+        await self._set_status(job_id, JobStatus.QUEUED, None)
 
     async def get(self, job_id: str) -> Job | None:
         cur = await self._conn.execute(

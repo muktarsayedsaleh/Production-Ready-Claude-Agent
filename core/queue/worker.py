@@ -8,7 +8,7 @@ from collections.abc import Awaitable, Callable
 import psycopg
 from redis.asyncio import Redis
 
-from core.queue.models import Job
+from core.queue.models import Job, JobPaused
 from core.queue.queue import DEFAULT_QUEUE, JobQueue
 from core.queue.store import JobStore, PostgresJobStore
 from core.tracing import configure_tracing
@@ -37,6 +37,9 @@ class Worker:
 
         try:
             await self._handler(job)
+        except JobPaused as exc:
+            logger.info("Job %s paused: %s", job_id, exc)
+            await self._store.mark_waiting_approval(job_id)
         except Exception as exc:
             logger.exception("Job %s failed", job_id)
             await self._store.mark_failed(job_id, str(exc) or type(exc).__name__)

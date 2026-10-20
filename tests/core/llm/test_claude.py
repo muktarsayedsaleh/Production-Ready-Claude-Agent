@@ -5,6 +5,7 @@ from typing import Any
 import anthropic
 import httpx2
 import pytest
+from anthropic.types import TextBlock, ToolUseBlock
 
 from core.llm import ClaudeClient, Message, ToolCall, ToolResult, ToolSpec, TransientLLMError
 
@@ -48,8 +49,8 @@ WEATHER_TOOL = ToolSpec(
 
 def test_complete_parses_text_tool_calls_and_cost() -> None:
     content = [
-        SimpleNamespace(type="text", text="Checking the weather."),
-        SimpleNamespace(type="tool_use", id="toolu_1", name="get_weather", input={"city": "Paris"}),
+        TextBlock(type="text", text="Checking the weather."),
+        ToolUseBlock(type="tool_use", id="toolu_1", name="get_weather", input={"city": "Paris"}),
     ]
     fake = FakeAnthropic(make_response(content, input_tokens=1000, output_tokens=500))
     client = ClaudeClient(model="claude-opus-5-5", client=fake)  # type: ignore[arg-type]
@@ -69,7 +70,10 @@ def test_complete_parses_text_tool_calls_and_cost() -> None:
     # 1000 * $4/M + 500 * $20/M
     assert response.cost_usd == pytest.approx(0.014)
     assert response.model == "claude-opus-5-5"
-    assert response.provider_state is content
+    assert response.provider_state == [
+        {"type": "text", "text": "Checking the weather."},
+        {"type": "tool_use", "id": "toolu_1", "name": "get_weather", "input": {"city": "Paris"}},
+    ]
 
     call = fake.messages.calls[0]
     assert call["model"] == "claude-opus-5-5"
@@ -83,7 +87,7 @@ def test_complete_parses_text_tool_calls_and_cost() -> None:
 
 
 def test_complete_omits_tools_when_none() -> None:
-    fake = FakeAnthropic(make_response([SimpleNamespace(type="text", text="hi")], 10, 2))
+    fake = FakeAnthropic(make_response([TextBlock(type="text", text="hi")], 10, 2))
     client = ClaudeClient(client=fake)  # type: ignore[arg-type]
 
     response = asyncio.run(client.complete([Message(role="user", text="hello")]))
@@ -93,7 +97,7 @@ def test_complete_omits_tools_when_none() -> None:
 
 
 def test_complete_converts_history_and_echoes_provider_state() -> None:
-    fake = FakeAnthropic(make_response([SimpleNamespace(type="text", text="done")], 1, 1))
+    fake = FakeAnthropic(make_response([TextBlock(type="text", text="done")], 1, 1))
     client = ClaudeClient(client=fake)  # type: ignore[arg-type]
     raw_assistant = [{"type": "thinking", "thinking": "", "signature": "sig"}]
 
