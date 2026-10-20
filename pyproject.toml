@@ -1,0 +1,28 @@
+[project]
+name = "production-ready-claude-agent"
+version = "0.1.0"
+description = "A production-ready Claude Agent SDK template you can clone, run with one command, and ship."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Muktar Sayed Saleh" }]
+requires-python = ">=3.12"
+dependencies = [
+    "claude-agent-sdk",
+    "redis",
+    "psycopg[binary]",
+    "opentelemetry-api",
+    "opentelemetry-sdk",
+    "opentelemetry-exporter-otlp",
+]
+
+[dependency-groups]
+dev = [
+    "pytest",
+    "ruff",
+    "mypy",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
