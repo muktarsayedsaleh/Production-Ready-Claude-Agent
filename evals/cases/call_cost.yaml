@@ -1,0 +1,27 @@
+description: Find the pricing rule in the docs and compute with the calculator.
+
+question: >-
+  Using the pricing in the docs, how much does one model call with 2,000 input tokens and
+  1,000 output tokens cost?
+
+expected_facts:
+  - regex: "\\$?0\\.028\\b"
+
+forbidden_tools: [fetch_url]
+max_cost_usd: 0.25
+
+fake_llm:
+  - tool_calls:
+      - name: file_search
+        input: {query: per million}
+    cost_usd: 0.004
+  - tool_calls:
+      - name: calculator
+        input: {expression: "2000 * 4 / 1000000 + 1000 * 20 / 1000000"}
+    cost_usd: 0.004
+  - answer:
+      answer: >-
+        At $4 per million input tokens and $20 per million output tokens, the call costs
+        2,000 x 4 / 1,000,000 + 1,000 x 20 / 1,000,000 = $0.028.
+      sources: [cost-caps.md]
+    cost_usd: 0.003

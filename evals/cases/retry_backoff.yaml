@@ -1,0 +1,22 @@
+description: Answer from the retries doc without going to the web.
+
+question: How does the retry delay grow between attempts, and what is the longest it can get?
+
+expected_facts:
+  - regex: "doubl(e|es|ing)"
+  - regex: "30 ?(s|sec|seconds)\\b"
+
+forbidden_tools: [fetch_url]
+max_cost_usd: 0.25
+
+fake_llm:
+  - tool_calls:
+      - name: file_search
+        input: {query: backoff}
+    cost_usd: 0.004
+  - answer:
+      answer: >-
+        Transient errors are retried with exponential backoff: the delay doubles after each
+        failed attempt (1s, 2s, 4s, ...) up to a maximum of 30 seconds, with full jitter.
+      sources: [retries-and-backoff.md]
+    cost_usd: 0.003

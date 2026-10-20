@@ -1,0 +1,22 @@
+description: Explain the permission policy from the docs; no web, no arithmetic needed.
+
+question: What happens when the agent tries to call a tool that the policy denies?
+
+expected_facts:
+  - not executed
+  - structured error
+
+forbidden_tools: [fetch_url, calculator]
+max_cost_usd: 0.25
+
+fake_llm:
+  - tool_calls:
+      - name: file_search
+        input: {query: denied}
+    cost_usd: 0.004
+  - answer:
+      answer: >-
+        A denied call is not executed. The model receives a structured error explaining why,
+        so it can try something else.
+      sources: [tool-permissions.md]
+    cost_usd: 0.003
