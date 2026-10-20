@@ -11,6 +11,7 @@ from redis.asyncio import Redis
 from core.queue.models import Job
 from core.queue.queue import DEFAULT_QUEUE, JobQueue
 from core.queue.store import JobStore, PostgresJobStore
+from core.tracing import configure_tracing
 
 logger = logging.getLogger(__name__)
 
@@ -63,10 +64,15 @@ def _load_handler(path: str) -> Handler:
 async def _main(queue_name: str, handler: Handler) -> None:
     redis = Redis.from_url(os.environ.get("REDIS_URL", "redis://localhost:6379/0"))
     database_url = os.environ.get("DATABASE_URL", "postgresql://agent:agent@localhost:5432/agent")
-    async with await psycopg.AsyncConnection.connect(database_url, autocommit=True) as conn:
-        store = PostgresJobStore(conn)
-        logger.info("Worker listening on queue %r", queue_name)
-        await Worker(JobQueue(redis, store, queue_name), store, handler).run()
+    tracer_provider = configure_tracing()
+    try:
+        async with await psycopg.AsyncConnection.connect(database_url, autocommit=True) as conn:
+            store = PostgresJobStore(conn)
+            logger.info("Worker listening on queue %r", queue_name)
+            await Worker(JobQueue(redis, store, queue_name), store, handler).run()
+    finally:
+        if tracer_provider is not None:
+            tracer_provider.shutdown()
 
 
 def main() -> None:

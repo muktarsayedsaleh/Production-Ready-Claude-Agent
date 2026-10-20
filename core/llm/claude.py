@@ -66,6 +66,7 @@ class ClaudeClient(LLMClient):
             input_tokens=input_tokens,
             output_tokens=output_tokens,
             cost_usd=self._pricing.cost(input_tokens, output_tokens),
+            model=response.model,
             provider_state=response.content,
         )
 

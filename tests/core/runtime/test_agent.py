@@ -4,7 +4,7 @@ from typing import Any
 import pytest
 from fakeredis import FakeAsyncRedis
 
-from core.llm import LLMClient, LLMResponse, Message, ToolCall, ToolSpec, TransientLLMError
+from core.llm import LLMResponse, Message, ToolCall, TransientLLMError
 from core.queue import Job, JobStatus
 from core.runtime import (
     AgentRuntime,
@@ -16,28 +16,7 @@ from core.runtime import (
     Tool,
 )
 from core.runtime.handler import make_job_handler
-
-
-class FakeLLMClient(LLMClient):
-    """Replays scripted responses (or raises scripted errors) and records every call."""
-
-    def __init__(self, script: list[LLMResponse | Exception]) -> None:
-        self.script = list(script)
-        self.calls: list[list[Message]] = []
-        self.tools_seen: list[list[ToolSpec] | None] = []
-
-    async def complete(
-        self,
-        messages: list[Message],
-        tools: list[ToolSpec] | None = None,
-        max_tokens: int = 16000,
-    ) -> LLMResponse:
-        self.calls.append(list(messages))
-        self.tools_seen.append(tools)
-        item = self.script.pop(0)
-        if isinstance(item, Exception):
-            raise item
-        return item
+from tests.fakes import FakeLLMClient
 
 
 class InMemoryResultStore:

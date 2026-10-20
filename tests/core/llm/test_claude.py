@@ -28,6 +28,7 @@ class FakeAnthropic:
 
 def make_response(content: list[SimpleNamespace], input_tokens: int, output_tokens: int):
     return SimpleNamespace(
+        model="claude-opus-5-5",
         content=content,
         usage=SimpleNamespace(input_tokens=input_tokens, output_tokens=output_tokens),
     )
@@ -67,6 +68,7 @@ def test_complete_parses_text_tool_calls_and_cost() -> None:
     assert response.output_tokens == 500
     # 1000 * $4/M + 500 * $20/M
     assert response.cost_usd == pytest.approx(0.014)
+    assert response.model == "claude-opus-5-5"
     assert response.provider_state is content
 
     call = fake.messages.calls[0]
