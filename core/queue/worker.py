@@ -6,8 +6,10 @@ import os
 from collections.abc import Awaitable, Callable
 
 import psycopg
-from redis.asyncio import Redis
+from redis.exceptions import ConnectionError as RedisConnectionError
+from redis.exceptions import TimeoutError as RedisTimeoutError
 
+from core.queue.connections import POP_TIMEOUT_SECONDS, create_redis
 from core.queue.models import Job, JobPaused
 from core.queue.queue import DEFAULT_QUEUE, JobQueue
 from core.queue.store import JobStore, PostgresJobStore
@@ -16,15 +18,25 @@ from core.tracing import configure_tracing
 logger = logging.getLogger(__name__)
 
 Handler = Callable[[Job], Awaitable[None]]
+Sleep = Callable[[float], Awaitable[None]]
+
+MAX_RECONNECT_DELAY_SECONDS = 30.0
 
 
 class Worker:
-    def __init__(self, queue: JobQueue, store: JobStore, handler: Handler) -> None:
+    def __init__(
+        self,
+        queue: JobQueue,
+        store: JobStore,
+        handler: Handler,
+        sleep: Sleep = asyncio.sleep,
+    ) -> None:
         self._queue = queue
         self._store = store
         self._handler = handler
+        self._sleep = sleep
 
-    async def run_once(self, timeout: float = 5) -> bool:
+    async def run_once(self, timeout: float = POP_TIMEOUT_SECONDS) -> bool:
         """Process at most one job. Returns False if the queue was empty."""
         job_id = await self._queue.pop(timeout=timeout)
         if job_id is None:
@@ -49,9 +61,40 @@ class Worker:
         return True
 
     async def run(self, stop: asyncio.Event | None = None) -> None:
+        """Process jobs until `stop` is set. Redis outages are waited out, never fatal."""
         stop = stop or asyncio.Event()
+        failures = 0
         while not stop.is_set():
-            await self.run_once()
+            try:
+                await self.run_once()
+            except (RedisTimeoutError, RedisConnectionError) as exc:
+                failures += 1
+                delay = reconnect_delay(failures)
+                logger.warning(
+                    "Redis unavailable (%s: %s), reconnecting in %.0fs (attempt %d)",
+                    type(exc).__name__,
+                    exc,
+                    delay,
+                    failures,
+                )
+                await self._sleep(delay)
+                await self._reconnect()
+            else:
+                if failures:
+                    logger.info("Redis connection restored after %d attempt(s)", failures)
+                failures = 0
+
+    async def _reconnect(self) -> None:
+        try:
+            await self._queue.reconnect()
+        except (RedisTimeoutError, RedisConnectionError):
+            # Still down; the next run_once fails fast and backs off further.
+            logger.debug("Reconnect failed", exc_info=True)
+
+
+def reconnect_delay(failures: int) -> float:
+    """1s, 2s, 4s, ... capped at MAX_RECONNECT_DELAY_SECONDS."""
+    return min(MAX_RECONNECT_DELAY_SECONDS, 2.0 ** (failures - 1))
 
 
 async def log_payload(job: Job) -> None:
@@ -65,7 +108,7 @@ def _load_handler(path: str) -> Handler:
 
 
 async def _main(queue_name: str, handler: Handler) -> None:
-    redis = Redis.from_url(os.environ.get("REDIS_URL", "redis://localhost:6379/0"))
+    redis = create_redis()
     database_url = os.environ.get("DATABASE_URL", "postgresql://agent:agent@localhost:5432/agent")
     tracer_provider = configure_tracing()
     try:

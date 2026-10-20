@@ -12,11 +12,11 @@ import os
 import sys
 
 import psycopg
-from redis.asyncio import Redis
 
 from agents.research.agent import QUEUE_NAME, ResearchAgent, load_policy
 from core.llm import ClaudeClient
 from core.queue import JobQueue, PostgresJobStore
+from core.queue.connections import create_redis
 from core.runtime import ApprovalRequired, InMemoryCheckpointStore
 from core.tracing import configure_tracing
 
@@ -42,7 +42,7 @@ async def run_sync(question: str, cost_cap_usd: float, as_json: bool) -> int:
 
 
 async def enqueue(question: str) -> int:
-    redis = Redis.from_url(os.environ.get("REDIS_URL", "redis://localhost:6379/0"))
+    redis = create_redis()
     database_url = os.environ.get("DATABASE_URL", "postgresql://agent:agent@localhost:5432/agent")
     async with await psycopg.AsyncConnection.connect(database_url, autocommit=True) as conn:
         job_id = await JobQueue(redis, PostgresJobStore(conn), QUEUE_NAME).enqueue(

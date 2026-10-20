@@ -13,12 +13,11 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
-from redis.asyncio import Redis
-
 from agents.research.tools import build_registry
 from core.llm import ClaudeClient, LLMClient
 from core.permissions import Policy
 from core.queue import Job, JobPaused
+from core.queue.connections import create_redis
 from core.queue.worker import Handler
 from core.runtime import (
     AgentRuntime,
@@ -148,7 +147,7 @@ async def handle_job(job: Job) -> None:
     """Worker entry point, configured from the environment on first use."""
     global _handler
     if _handler is None:
-        redis = Redis.from_url(os.environ.get("REDIS_URL", "redis://localhost:6379/0"))
+        redis = create_redis()
         agent = ResearchAgent(
             ClaudeClient(),
             policy=load_policy(),

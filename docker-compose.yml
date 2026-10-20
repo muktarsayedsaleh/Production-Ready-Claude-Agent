@@ -57,6 +57,14 @@ services:
   worker:
     <<: *app
     restart: unless-stopped
+    healthcheck:
+      # Healthy when the worker can reach Redis and Postgres.
+      test: ["CMD", "python", "-m", "core.queue.healthcheck"]
+      interval: 10s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+      start_interval: 2s
     depends_on:
       postgres:
         condition: service_healthy

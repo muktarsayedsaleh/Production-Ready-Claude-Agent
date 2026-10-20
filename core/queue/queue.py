@@ -3,6 +3,7 @@ from typing import Any
 
 from redis.asyncio import Redis
 
+from core.queue.connections import POP_TIMEOUT_SECONDS
 from core.queue.store import JobStore
 
 DEFAULT_QUEUE = "jobs"
@@ -28,10 +29,14 @@ class JobQueue:
         await self._store.mark_queued(job_id)
         await self._redis.lpush(self._key, job_id)
 
-    async def pop(self, timeout: float = 5) -> str | None:
-        """Block up to `timeout` seconds for the next job id."""
+    async def pop(self, timeout: float = POP_TIMEOUT_SECONDS) -> str | None:
+        """Block up to `timeout` seconds for the next job id; None if no job arrived."""
         result = await self._redis.brpop([self._key], timeout=timeout)
         if result is None:
             return None
         _, job_id = result
         return job_id.decode() if isinstance(job_id, bytes) else str(job_id)
+
+    async def reconnect(self) -> None:
+        """Drop pooled connections; the next command opens a fresh one."""
+        await self._redis.connection_pool.disconnect()

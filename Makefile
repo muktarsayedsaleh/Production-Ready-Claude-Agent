@@ -18,6 +18,16 @@ logs: ## Follow logs from all services
 	docker compose logs --follow
 
 demo: ## Ask the research agent a sample question inside the worker container
+	@echo "Waiting for the worker to be running and healthy..."
+	@for i in $$(seq 1 60); do \
+		state=$$(docker compose ps worker --format '{{.State}} {{.Health}}' 2>/dev/null); \
+		[ "$$state" = "running healthy" ] && break; \
+		if [ $$i -eq 60 ]; then \
+			echo "Worker not healthy after 120s (state: $${state:-not running}). Try 'make up' or 'make logs'."; \
+			exit 1; \
+		fi; \
+		sleep 2; \
+	done
 	docker compose exec worker python -m agents.research --sync "$(DEMO_QUESTION)"
 
 migrate: ## Apply database migrations from this machine
