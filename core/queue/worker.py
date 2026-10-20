@@ -4,17 +4,17 @@ import importlib
 import logging
 import os
 from collections.abc import Awaitable, Callable
-from typing import Any
 
 import psycopg
 from redis.asyncio import Redis
 
+from core.queue.models import Job
 from core.queue.queue import DEFAULT_QUEUE, JobQueue
 from core.queue.store import JobStore, PostgresJobStore
 
 logger = logging.getLogger(__name__)
 
-Handler = Callable[[dict[str, Any]], Awaitable[None]]
+Handler = Callable[[Job], Awaitable[None]]
 
 
 class Worker:
@@ -35,7 +35,7 @@ class Worker:
             return True
 
         try:
-            await self._handler(job.payload)
+            await self._handler(job)
         except Exception as exc:
             logger.exception("Job %s failed", job_id)
             await self._store.mark_failed(job_id, str(exc) or type(exc).__name__)
@@ -50,8 +50,8 @@ class Worker:
             await self.run_once()
 
 
-async def log_payload(payload: dict[str, Any]) -> None:
-    logger.info("Processing payload: %s", payload)
+async def log_payload(job: Job) -> None:
+    logger.info("Processing job %s: %s", job.id, job.payload)
 
 
 def _load_handler(path: str) -> Handler:

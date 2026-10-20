@@ -57,8 +57,8 @@ def test_jobs_are_processed_in_fifo_order() -> None:
         queue, store = make_queue()
         seen: list[dict[str, Any]] = []
 
-        async def handler(payload: dict[str, Any]) -> None:
-            seen.append(payload)
+        async def handler(job: Job) -> None:
+            seen.append(job.payload)
 
         first = await queue.enqueue({"n": 1})
         second = await queue.enqueue({"n": 2})
@@ -79,7 +79,7 @@ def test_failed_job_records_error() -> None:
     async def scenario() -> None:
         queue, store = make_queue()
 
-        async def handler(payload: dict[str, Any]) -> None:
+        async def handler(job: Job) -> None:
             raise RuntimeError("model unavailable")
 
         job_id = await queue.enqueue({"task": "boom"})
@@ -97,7 +97,7 @@ def test_run_once_returns_false_when_queue_empty() -> None:
     async def scenario() -> None:
         queue, store = make_queue()
 
-        async def handler(payload: dict[str, Any]) -> None:
+        async def handler(job: Job) -> None:
             raise AssertionError("should not be called")
 
         assert await Worker(queue, store, handler).run_once(timeout=0.1) is False
